@@ -6,6 +6,8 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/string.h>
+#include <linux/device.h>
+#include <linux/mutex.h>
 
 #include "simple_module.h"
 
@@ -15,8 +17,25 @@ static struct proc_dir_entry *proc_file;
 static struct kobject *kobj_ref;
 static struct class *cls;
 
+/* mutex for shared buffer */
+static DEFINE_MUTEX(my_mutex);
+
 /* kernel buffer */
 static char msg_buffer[BUFFER_SIZE] = "Hello from Kernel Space!\n";
+
+/* ===== open ===== */
+static int dev_open(struct inode *inode, struct file *file)
+{
+    pr_info("device opened\n");
+    return 0;
+}
+
+/* ===== close ===== */
+static int dev_close(struct inode *inode, struct file *file)
+{
+    pr_info("device closed\n");
+    return 0;
+}
 
 /* ===== read ===== */
 static ssize_t dev_read(struct file *file,
@@ -24,19 +43,28 @@ static ssize_t dev_read(struct file *file,
                         size_t len,
                         loff_t *off)
 {
-    int bytes = strlen(msg_buffer) - *off;
+    int bytes;
 
-    if (bytes <= 0)
+    mutex_lock(&my_mutex);
+
+    bytes = strlen(msg_buffer) - *off;
+
+    if (bytes <= 0) {
+        mutex_unlock(&my_mutex);
         return 0;
+    }
 
-    /* don't copy more than requested */
     if (bytes > len)
         bytes = len;
 
-    if (copy_to_user(buf, msg_buffer + *off, bytes))
+    if (copy_to_user(buf, msg_buffer + *off, bytes)) {
+        mutex_unlock(&my_mutex);
         return -EFAULT;
+    }
 
     *off += bytes;
+
+    mutex_unlock(&my_mutex);
 
     return bytes;
 }
@@ -47,26 +75,32 @@ static ssize_t dev_write(struct file *file,
                          size_t len,
                          loff_t *off)
 {
-    /* avoid overflow */
+    mutex_lock(&my_mutex);
+
     if (len > BUFFER_SIZE - 1)
         len = BUFFER_SIZE - 1;
 
-    /* copy user data into kernel buffer */
-    if (copy_from_user(msg_buffer, buf, len))
+    if (copy_from_user(msg_buffer, buf, len)) {
+        mutex_unlock(&my_mutex);
         return -EFAULT;
+    }
 
     msg_buffer[len] = '\0';
 
     pr_info("received: %s\n", msg_buffer);
+
+    mutex_unlock(&my_mutex);
 
     return len;
 }
 
 /* ===== char driver ops ===== */
 static struct file_operations fops = {
-    .owner = THIS_MODULE,
-    .read  = dev_read,
-    .write = dev_write,
+    .owner   = THIS_MODULE,
+    .open    = dev_open,
+    .release = dev_close,
+    .read    = dev_read,
+    .write   = dev_write,
 };
 
 /* ===== procfs ===== */
@@ -75,15 +109,25 @@ static ssize_t proc_read(struct file *file,
                          size_t len,
                          loff_t *off)
 {
-    int bytes = strlen(msg_buffer);
+    int bytes;
 
-    if (*off > 0)
+    mutex_lock(&my_mutex);
+
+    bytes = strlen(msg_buffer);
+
+    if (*off > 0) {
+        mutex_unlock(&my_mutex);
         return 0;
+    }
 
-    if (copy_to_user(buf, msg_buffer, bytes))
+    if (copy_to_user(buf, msg_buffer, bytes)) {
+        mutex_unlock(&my_mutex);
         return -EFAULT;
+    }
 
     *off += bytes;
+
+    mutex_unlock(&my_mutex);
 
     return bytes;
 }
@@ -97,7 +141,15 @@ static ssize_t sys_show(struct kobject *kobj,
                         struct kobj_attribute *attr,
                         char *buf)
 {
-    return sprintf(buf, "%s", msg_buffer);
+    ssize_t ret;
+
+    mutex_lock(&my_mutex);
+
+    ret = sprintf(buf, "%s", msg_buffer);
+
+    mutex_unlock(&my_mutex);
+
+    return ret;
 }
 
 static struct kobj_attribute sys_attr =
@@ -107,6 +159,9 @@ static struct kobj_attribute sys_attr =
 static int __init simple_init(void)
 {
     pr_info("module init\n");
+
+    /* init mutex */
+    mutex_init(&my_mutex);
 
     /* register char device */
     major = register_chrdev(0, DEVICE_NAME, &fops);
@@ -118,6 +173,12 @@ static int __init simple_init(void)
 
     /* create /dev/simple_char_dev */
     cls = class_create("simple_class");
+
+    if (IS_ERR(cls)) {
+        unregister_chrdev(major, DEVICE_NAME);
+        return PTR_ERR(cls);
+    }
+
     device_create(cls, NULL, MKDEV(major, 0), NULL, DEVICE_NAME);
 
     /* create /proc/simple_proc */
@@ -143,17 +204,22 @@ static void __exit simple_exit(void)
     pr_info("module exit\n");
 
     /* remove sysfs */
-    sysfs_remove_file(kobj_ref, &sys_attr.attr);
-    kobject_put(kobj_ref);
+    if (kobj_ref) {
+        sysfs_remove_file(kobj_ref, &sys_attr.attr);
+        kobject_put(kobj_ref);
+    }
 
     /* remove procfs */
-    proc_remove(proc_file);
+    if (proc_file)
+        proc_remove(proc_file);
 
     /* remove char device */
     device_destroy(cls, MKDEV(major, 0));
     class_destroy(cls);
 
     unregister_chrdev(major, DEVICE_NAME);
+
+    mutex_destroy(&my_mutex);
 }
 
 module_init(simple_init);
@@ -161,4 +227,4 @@ module_exit(simple_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("karthikeya");
-MODULE_DESCRIPTION("Simple character driver with procfs and sysfs");
+MODULE_DESCRIPTION("Simple character driver with read write procfs sysfs and mutex");
