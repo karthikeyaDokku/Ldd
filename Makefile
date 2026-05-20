@@ -1,4 +1,4 @@
-obj-m += simple_module.o
+obj-m += usb_driver_copy.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
