@@ -1,4 +1,4 @@
-obj-m += usb_driver_copy.o
+obj-m += mycameraDriver.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
