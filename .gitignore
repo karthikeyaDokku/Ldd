@@ -9,3 +9,9 @@
 # Hidden kernel build tracking files
 .*.cmd
 .tmp_versions/
+
+
+
+#Hidden any photo video files
+*.h264
+*.mp4
