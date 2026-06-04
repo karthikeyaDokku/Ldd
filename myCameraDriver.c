@@ -73,4 +73,3 @@ module_i2c_driver(imx219_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Minimal IMX219 driver");
-
