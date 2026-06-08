@@ -12,7 +12,14 @@ static int imx219_write_reg(struct i2c_client *client,
                             u16 reg,
                             u8 val)
 {
-    return i2c_smbus_write_byte_data(client, reg, val);
+    dev_info(&client->dev,
+             "WRITE reg=0x%x val=0x%x\n",
+             reg,
+             val);
+
+    return i2c_smbus_write_byte_data(client,
+                                     reg,
+                                     val);
 }
 
 static int imx219_probe(struct i2c_client *client)
