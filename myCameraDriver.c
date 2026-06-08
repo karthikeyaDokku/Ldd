@@ -22,6 +22,23 @@ static int imx219_write_reg(struct i2c_client *client,
                                      val);
 }
 
+
+static int imx219_start_stream(struct i2c_client *client)
+{
+    return i2c_smbus_write_byte_data(
+        client,
+        IMX219_REG_MODE_SELECT,
+        IMX219_STREAM_ON);
+}
+
+static int imx219_stop_stream(struct i2c_client *client)
+{
+    return i2c_smbus_write_byte_data(
+        client,
+        IMX219_REG_MODE_SELECT,
+        IMX219_STREAM_OFF);
+}
+
 static int imx219_probe(struct i2c_client *client)
 {
     int chip_id;
