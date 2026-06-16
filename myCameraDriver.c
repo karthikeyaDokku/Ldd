@@ -96,4 +96,6 @@ static struct i2c_driver imx219_driver = {
 module_i2c_driver(imx219_driver);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Karthikeya");
 MODULE_DESCRIPTION("Minimal IMX219 driver");
+
