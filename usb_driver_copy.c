@@ -95,3 +95,4 @@ module_exit(usb_skel_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Karthikeya");
 MODULE_DESCRIPTION(" USB Skeleton Driver");
+
