@@ -2,6 +2,10 @@
 #include <linux/i2c.h>
 
 #include "myCameraDriver.h"
+#ifdef CONFIG_KUNIT
+#include "myCameraDrivertest.c"
+#endif
+
 
 static int imx219_read_reg(struct i2c_client *client, u16 reg)
 {
