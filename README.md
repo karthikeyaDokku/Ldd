@@ -1,4 +1,4 @@
-# IMX219 Camera Driver Learning Project
+# IMX219 Camera Driver
 
 ## Overview
 This project is a simple Linux kernel I2C driver created for learning how camera drivers work internally. The target sensor is the Sony IMX219 camera module commonly used with Raspberry Pi boards.
