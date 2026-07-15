@@ -99,7 +99,7 @@ power already being on). This driver does it itself:
 | File | Purpose |
 |---|---|
 | `imx219.c` | The driver itself |
-| `myCameraDriver.h` | Register addresses, clock frequency, delay constants |
+| `imx219.h` | Register addresses, clock frequency, delay constants |
 | `imx219_basic-overlay.dts` | Device tree overlay binding the driver to CAM0 |
 | `Makefile` | Standard out-of-tree kernel module build |
 
